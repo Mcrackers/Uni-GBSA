@@ -21,6 +21,8 @@ class GBSA(object):
         self.verbose = 0
         self.deltaG = None
         self.resG = None
+        self.input_rec_file = None
+        self.input_lig_file = None
 
     def set_paras(self, complexfile, trajectoryfile, topolfile, indexfile, pbsaParas=None, mmpbsafile=None, nt=1):
         """
@@ -174,6 +176,9 @@ class GBSA(object):
             return
         self.deltaG, self.resG = parse_GMXMMPBSA_RESULTS(mmxsafile=mmxsafile)
         if self.resG is not None:
-            resdic = mapping_resname(self.input_pdb, self.complex)
+            if self.input_rec_file and self.input_lig_file:
+                resdic = mapping_resname(self.input_rec_file, self.input_lig_file, self.complex)
+            else:
+                resdic = {}
             self.resG['resid'] = [k if k not in resdic else resdic[k] for k in self.resG['resid']]
             self.resG.to_csv(decfile)

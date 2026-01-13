@@ -18,7 +18,7 @@ from multiprocessing import Pool
 
 
 KEY = ['ligandName', 'Frames', 'mode', 'complex','receptor','ligand','Internal','Van der Waals','Electrostatic','Polar Solvation','Non-Polar Solvation','Gas','Solvation','TOTAL', 'status']
-def traj_pipeline(complexfile, trajfile, topolfile, indexfile, pbsaParas=None, mmpbsafile=None, nt=1, verbose=False, input_pdb = None):
+def traj_pipeline(complexfile, trajfile, topolfile, indexfile, pbsaParas=None, mmpbsafile=None, nt=1, verbose=False, input_rec_file = None, input_lig_file = None):
     """
     A pipeline for calculate GBSA/PBSA for trajectory
     
@@ -43,8 +43,10 @@ def traj_pipeline(complexfile, trajfile, topolfile, indexfile, pbsaParas=None, m
        raise Exception('Error convert %s to %s'%(complexfile, reresfile))
     pbsa = GBSA()
     pbsa.complex = os.path.abspath(reresfile)
-    if input_pdb:
-        pbsa.input_pdb = os.path.abspath(input_pdb)
+    if input_rec_file:
+        pbsa.input_rec_file = os.path.abspath(input_rec_file)
+    if input_lig_file:
+        pbsa.input_lig_file = os.path.abspath(input_lig_file)
     mmpbsafile = pbsa.set_paras(complexfile=reresfile, trajectoryfile=trajfile, topolfile=topolfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, nt=nt)
     pbsa.run(verbose=verbose)
     delta_G = pbsa.extract_result()
@@ -102,7 +104,7 @@ def base_pipeline(receptorfile, ligandfiles, paras, nt=1, mmpbsafile=None, outfi
         
         if statu == 'S':
             try:
-                dl = traj_pipeline(grofile, trajfile=grofile, topolfile=topfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, verbose=verbose, nt=nt, input_pdb=receptorfile)
+                dl = traj_pipeline(grofile, trajfile=grofile, topolfile=topfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, verbose=verbose, nt=nt, input_rec_file=receptorfile, input_lig_file=ligandfile)
             except:
                 if len(ligandfiles)==1:
                     traceback.print_exc()
@@ -173,7 +175,7 @@ def single(arg):
         try:
             if not os.path.exists(indexfile):
                 indexfile = generate_index_file(grofile)
-            d1 = traj_pipeline(grofile, trajfile=grofile, topolfile=topfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, verbose=verbose, nt=nt, input_pdb=receptorfile)
+            d1 = traj_pipeline(grofile, trajfile=grofile, topolfile=topfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, verbose=verbose, nt=nt, input_rec_file=receptorfile, input_lig_file=ligandfile)
         except:
             if len(ligandfiles) == 1:
                 logging.warning('Failed to run GBSA for ligand: %s'%ligandName)
@@ -269,7 +271,7 @@ def md_pipeline(receptorfile, ligandfiles, paras, mmpbsafile=None, nt=1, outfile
             indexfile = generate_index_file(grofile)
         if 'startframe' not in pbsaParas:
             pbsaParas["startframe"] = 2
-        deltaG = traj_pipeline(grofile, trajfile=xtcfile, topolfile=topfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, nt=nt, verbose=verbose, input_pdb=receptorfile)
+        deltaG = traj_pipeline(grofile, trajfile=xtcfile, topolfile=topfile, indexfile=indexfile, pbsaParas=pbsaParas, mmpbsafile=mmpbsafile, nt=nt, verbose=verbose, input_rec_file=receptorfile, input_lig_file=ligandfile)
         ligandnames.extend([ligandName]*simParas['nframe'])
         status.extend(['S']*simParas['nframe'])
         if df is None:
