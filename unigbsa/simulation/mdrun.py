@@ -1,3 +1,4 @@
+import fcntl
 import os
 import shutil
 from unigbsa.settings import GMXEXE, MDPFILESDIR, OMP_NUM_THREADS
@@ -68,12 +69,14 @@ class GMXEngine(BaseObject):
             'nt': nt,
         }
         if args['gmx'] == 'gmx_mpi':
-            cmd = 'mpirun --allow-run-as-root -n {nt} {gmx} mdrun -v -deffnm {jobname}'.format(**args)
+            cmd = 'mpirun --allow-run-as-root -n {nt} {gmx} mdrun -v -pin on -deffnm {jobname}'.format(**args)
         else:
-            cmd = '{gmx} mdrun -v -deffnm {jobname} -nt {nt} -ntmpi 1 '.format(**args)
+            cmd = '{gmx} mdrun -v -deffnm {jobname} -pin on -nt {nt} -ntmpi 1 '.format(**args)
         if nsteps:
             cmd += ' -nsteps %d '%nsteps
-        RC = os.system(cmd+' >>%s 2>&1 '%self.gmxlog)
+        with open('/tmp/unigbsa_gpu.lock', 'w') as lock_fd:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+            RC = os.system(cmd+' >>%s 2>&1 '%self.gmxlog)
         if RC != 0:
             print(cmd)
             os.system('tail %s -n 50'%self.gmxlog)
