@@ -249,16 +249,23 @@ def structural_optimization_walker(arg):
         files['indexfile'] = indexfile
     return ligandName, files
 
-def structural_optimization_MPI(paras, outdir=None, nt=4):
+def structural_optimization(paras, outdir=None, nt=4):
     ligandNames = paras['files'].keys()
-    threads, nworker = threads_split(len(ligandNames), nt)
-    args = [ (paras, ligandName, outdir, threads) for ligandName in ligandNames ]
-    with ProcessPoolExecutor(max_workers=nworker) as pool:
-        outfiles = { 
-            out[0]:out[1] 
-            for out in list(pool.map(structural_optimization_walker, args)) 
-            if out is not None 
-        }
+    # threads, nworker = threads_split(len(ligandNames), nt)
+    # args = [ (paras, ligandName, outdir, threads) for ligandName in ligandNames ]
+    # with ProcessPoolExecutor(max_workers=nworker) as pool:
+    #     outfiles = { 
+    #         out[0]:out[1] 
+    #         for out in list(pool.map(structural_optimization_walker, args)) 
+    #         if out is not None 
+    #     }
+    threads = nt
+    args = [(paras, ligandName, outdir, threads) for ligandName in ligandNames]
+    outfiles = {}
+    for arg in args:
+        out = structural_optimization_walker(arg)
+        if out is not None:
+            outfiles[out[0]] = out[1]
     outparas = copy(paras)
     outparas['files'] = outfiles
     return outparas
@@ -340,7 +347,7 @@ def scan_parameters_v2(receptors, protdir, ligands, ligdir, expdatfile, parasfil
             for k, v in parasdic.items():
                 outdir = os.path.join(name, k)
                 topfileparas['simulation'] = v['simulation']
-                outparas = structural_optimization_MPI(topfileparas, outdir=outdir, nt=nt)
+                outparas = structural_optimization(topfileparas, outdir=outdir, nt=nt)
                 simulationparas[name][k] = outparas
         outset = []
         for k, v in parasdicts.items():
