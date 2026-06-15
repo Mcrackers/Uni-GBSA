@@ -4,6 +4,7 @@ import json
 import shutil
 import argparse
 import itertools
+import traceback
 import pandas as pd
 import multiprocessing
 
@@ -220,33 +221,38 @@ def structural_optimization_walker(arg):
     else:
         ligandir = os.path.join(outdir, ligandName)
     with PathManager(ligandir) as pm:
-        engine = GMXEngine()
-        if paras['simulation']['mode'] == 'em':
-            GBSAInputfile = 'complex_minim.pdb'
-            minimgro, outtop = engine.run_to_minim(complexfile, topolfile, boxtype=simParas['boxtype'], boxsize=simParas['boxsize'], conc=simParas['conc'], maxsol=simParas['maxsol'], nt=threads)
-            GBSAInputfile = reres_gro(minimgro, 'complex_minim.pdb')
-            files['GBSAinput'] = pm.abspath(GBSAInputfile)
-            files['GBSAtraj'] = pm.abspath(GBSAInputfile)
-            shutil.copy(outtop, 'topol.top')
-            files['topolfile'] = pm.abspath('topol.top')
-            engine.clean(pdbfile=complexfile)
-        elif paras['simulation']['mode'] == 'md':
-            mdgro, mdxtc, outtop = engine.run_to_md(complexfile, topolfile, boxtype=simParas['boxtype'], boxsize=simParas['boxsize'], conc=simParas['conc'], nsteps=simParas['nsteps'], nframe=simParas['nframe'], eqsteps=simParas['eqsteps'], nt=threads)
-            GBSAInputfile = reres_gro(mdgro, 'complex_md.pdb')
-            files['GBSAinput'] = pm.abspath(GBSAInputfile)
-            files['GBSAtraj'] = pm.abspath('traj_comx.xtc')
-            shutil.copy(outtop, 'topol.top')
-            files['topolfile'] = pm.abspath('topol.top')
-            shutil.copy(mdxtc, 'traj_comx.xtc')
-            engine.clean(pdbfile=complexfile)
-        elif paras['simulation']['mode'] == 'input':
-            files['GBSAinput'] = complexfile
-            files['GBSAtraj'] = complexfile
-            files['topolfile'] = topolfile
-        else:
+        try:
+            engine = GMXEngine()
+            if paras['simulation']['mode'] == 'em':
+                GBSAInputfile = 'complex_minim.pdb'
+                minimgro, outtop = engine.run_to_minim(complexfile, topolfile, boxtype=simParas['boxtype'], boxsize=simParas['boxsize'], conc=simParas['conc'], maxsol=simParas['maxsol'], nt=threads)
+                GBSAInputfile = reres_gro(minimgro, 'complex_minim.pdb')
+                files['GBSAinput'] = pm.abspath(GBSAInputfile)
+                files['GBSAtraj'] = pm.abspath(GBSAInputfile)
+                shutil.copy(outtop, 'topol.top')
+                files['topolfile'] = pm.abspath('topol.top')
+                engine.clean(pdbfile=complexfile)
+            elif paras['simulation']['mode'] == 'md':
+                mdgro, mdxtc, outtop = engine.run_to_md(complexfile, topolfile, boxtype=simParas['boxtype'], boxsize=simParas['boxsize'], conc=simParas['conc'], nsteps=simParas['nsteps'], nframe=simParas['nframe'], eqsteps=simParas['eqsteps'], nt=threads)
+                GBSAInputfile = reres_gro(mdgro, 'complex_md.pdb')
+                files['GBSAinput'] = pm.abspath(GBSAInputfile)
+                files['GBSAtraj'] = pm.abspath('traj_comx.xtc')
+                shutil.copy(outtop, 'topol.top')
+                files['topolfile'] = pm.abspath('topol.top')
+                shutil.copy(mdxtc, 'traj_comx.xtc')
+                engine.clean(pdbfile=complexfile)
+            elif paras['simulation']['mode'] == 'input':
+                files['GBSAinput'] = complexfile
+                files['GBSAtraj'] = complexfile
+                files['topolfile'] = topolfile
+            else:
+                return None
+            indexfile = generate_index_file(files['GBSAinput'])
+            files['indexfile'] = indexfile
+        except Exception as e:
+            logging.warning('Failed structural optimization for ligand %s: %s' % (ligandName, e))
+            traceback.print_exc()
             return None
-        indexfile = generate_index_file(files['GBSAinput'])
-        files['indexfile'] = indexfile
     return ligandName, files
 
 def structural_optimization(paras, outdir=None, nt=4):

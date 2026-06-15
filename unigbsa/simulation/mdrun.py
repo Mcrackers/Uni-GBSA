@@ -74,9 +74,9 @@ class GMXEngine(BaseObject):
             cmd = '{gmx} mdrun -v -deffnm {jobname} -pin on -nt {nt} -ntmpi 1 '.format(**args)
         if nsteps:
             cmd += ' -nsteps %d '%nsteps
-        with open('/tmp/unigbsa_gpu.lock', 'w') as lock_fd:
-            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
-            RC = os.system(cmd+' >>%s 2>&1 '%self.gmxlog)
+        # with open('/tmp/unigbsa_gpu.lock', 'w') as lock_fd:
+            # fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+        RC = os.system(cmd+' >>%s 2>&1 '%self.gmxlog)
         if RC != 0:
             print(cmd)
             os.system('tail %s -n 50'%self.gmxlog)
