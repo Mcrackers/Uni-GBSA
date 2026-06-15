@@ -200,7 +200,10 @@ def build_topology_MPI(receptorfiles, ligandfiles, paras, outdir, nt=4):
         ligandfiles = pm.abspath(ligandfiles, parent=True)
         args = [ (receptor, ligandfile, paras, threads) for receptor, ligandfile in zip(receptors, ligandfiles) ]
         with ProcessPoolExecutor(max_workers=nworker) as pool:
-            outdict = { out[0]:out[1] for out in list(pool.map(build_topology_walker, args)) if out is not None }
+            outdict = { 
+                out[0]:out[1] for out in list(pool.map(build_topology_walker, args)) 
+                if out is not None 
+            }
     outparas = copy(paras)
     outparas['files'] = outdict
     return outparas
@@ -251,7 +254,11 @@ def structural_optimization_MPI(paras, outdir=None, nt=4):
     threads, nworker = threads_split(len(ligandNames), nt)
     args = [ (paras, ligandName, outdir, threads) for ligandName in ligandNames ]
     with ProcessPoolExecutor(max_workers=nworker) as pool:
-        outfiles = { out[0]:out[1] for out in list(pool.map(structural_optimization_walker, args)) if out is not None }
+        outfiles = { 
+            out[0]:out[1] 
+            for out in list(pool.map(structural_optimization_walker, args)) 
+            if out is not None 
+        }
     outparas = copy(paras)
     outparas['files'] = outfiles
     return outparas
@@ -274,7 +281,10 @@ def gbsa_calculation_MPI(paras, outdir, nt=4):
     threads, nworker = threads_split(len(ligandNames), nt)
     args = [ (paras, ligandName, outdir, threads) for ligandName in ligandNames ]
     with ProcessPoolExecutor(max_workers=nworker) as pool:
-        results = [ out for out in list(pool.map(gbsa_calculation_walker, args)) if out is not None ]
+        results = [ 
+            out for out in list(pool.map(gbsa_calculation_walker, args)) 
+            if out is not None 
+        ]
     df = None
     for result in results:
         if df is None:
