@@ -1,4 +1,5 @@
 from unigbsa.settings import PBSA_VERSION, PBSA_PARAMETER_FILE
+
 '''
 see the https://valdes-tresanco-ms.github.io/gmx_MMPBSA/input_file/#the-input-file
 '''
@@ -7,7 +8,7 @@ generalstring = '''
 
 &general
 sys_name = {sysName}, startframe={startFrame}, endframe={endFrame}, verbose=2, interval={interval}, temperature={temperature}
-protein_forcefield="oldff/leaprc.ff99SB",
+protein_forcefield="oldff/leaprc.ff99SBildn",
 /
 '''
 
@@ -31,6 +32,7 @@ idecomp=2, dec_verbose=0,
 print_res="within 5"
 /
 '''
+
 
 def generate_input_file_v143(pbsaParas, outfile='mmpbsa.in') -> None:
     """
@@ -79,6 +81,7 @@ def generate_input_file_v143(pbsaParas, outfile='mmpbsa.in') -> None:
         fw.write(line)
     return outfile
 
+
 def generate_input_file_v152(pbsaParas, outfile='mmpbsa.in'):
     modes = pbsaParas['modes'].split(',') + ['general']
     if 'indi' in pbsaParas:
@@ -119,6 +122,7 @@ def generate_input_file_v152(pbsaParas, outfile='mmpbsa.in'):
             fw.write('/\n')
     return outfile
 
+
 def set_parameters(mmpbsafile, key, value):
     with open(mmpbsafile) as fr:
         lines = fr.readlines()
@@ -133,10 +137,12 @@ def set_parameters(mmpbsafile, key, value):
                     line = lineList[0] + key + '=%s'%str(value) + '\n'
             fw.write(line)
 
+
 if PBSA_VERSION >=1.5:
     generate_input_file = generate_input_file_v152
 else:
     generate_input_file = generate_input_file_v143
+
 
 if __name__ == "__main__":
     pass

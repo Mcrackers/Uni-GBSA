@@ -1,19 +1,29 @@
-; minim.mdp - used as input into grompp to generate em.tpr
-define          = -DFLEXIBLE
-constraints     = none
-integrator  = steep     ; Algorithm (steep = steepest descent minimization)
-emtol       = 1000.0    ; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
-emstep      = 0.01      ; Energy step size
-nsteps      = 50000      ; Maximum number of (minimization) steps to perform
+                            ; minim.mdp - used as input into grompp to generate em.tpr
+define                  = -DFLEXIBLE
+constraints             = none
+integrator              = steep     ; Algorithm (steep = steepest descent minimization)
+emtol                   = 100       ; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
+emstep                  = 0.01      ; Energy step size
+nsteps                  = 10000     ; Maximum number of (minimization) steps to perform
+
+; Output control
+nstxout                 = 0         ; save coordinates every 1.0 ps .ttr
+nstvout                 = 0         ; save velocities every 1.0 ps .ttr
+nstenergy               = 0         ; save energies every 1.0 ps .ttr
+nstlog                  = 0         ; update log file every 1.0 ps
+nstxout-compressed      = 0         ; save coordinates every 1.0 ps .xtc
 
 ; Parameters describing how to find the neighbors of each atom and how to calculate the interactions
-nstlist         = 5         ; Frequency to update the neighbor list and long range forces
-cutoff-scheme   = Verlet
-ns_type         = grid      ; Method to determine neighbor list (simple, grid)
-coulombtype     = PME       ; Treatment of long range electrostatic interactions
-rcoulomb        = 1.0       ; Short-range electrostatic cut-off
-vdwtype             = cut-off
-rvdw            = 1.0       ; Short-range Van der Waals cut-off
-rlist               = 1.0
-fourierspacing      = 0.12
-pbc             = xyz       ; Periodic Boundary Conditions (yes/no)
+nstlist                 = 10        ; Frequency to update the neighbor list and long range forces
+cutoff-scheme           = Verlet
+pbc                     = xyz       ; Periodic Boundary Conditions
+rlist                   = 1.0
+
+; Electrostatics
+coulombtype             = PME       ; Treatment of long range electrostatic interactions
+rcoulomb                = 1.0       ; Short-range electrostatic cut-off
+vdwtype                 = Cut-off
+rvdw                    = 1.0       ; Short-range Van der Waals cut-off
+vdw-modifier            = Potential-Shift
+fourierspacing          = 0.125
+

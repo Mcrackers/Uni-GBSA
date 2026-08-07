@@ -315,8 +315,8 @@ class GMXEngine(BaseObject):
             for line in fr:
                 if line.startswith('nsteps'):
                     line = 'nsteps      =  %d\n' % nsteps
-                elif line.startswith('nstxtcout'):
-                    line = 'nstxtcout    =  %d\n' %int(nsteps/nframe)
+                elif line.startswith('nstxout-compressed'):
+                    line = 'nstxout-compressed   =  %d\n' %int(nsteps/nframe)
                 fw.write(line)
         outtpr = self._grompp(pdbfile, topfile, 'md', mdmdpfile, maxwarn=2)
         grofile = self._mdrun(outtpr, nt)
