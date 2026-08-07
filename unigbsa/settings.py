@@ -2,7 +2,7 @@ import os
 import re
 import sys
 import uuid
-import shutil
+#import shutil
 import logging
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
@@ -10,8 +10,11 @@ DATE_FORMAT = "%m/%d/%Y %H:%M:%S %p"
 DEFAULT_CONFIGURE_FILE = os.path.dirname(os.path.abspath(__file__))+ '/data/default.ini'
 TEMPLATE_TOP = os.path.dirname(os.path.abspath(__file__))+ '/data/template.json'
 PBSA_PARAMETER_FILE = os.path.dirname(os.path.abspath(__file__))+ '/data/mmpbsa.in'
+MDPFILESDIR = os.path.dirname(os.path.abspath(__file__)) + '/simulation/mdp'
 
-# base configure
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=DATE_FORMAT)
+
+
 def find_gmx():
     RC = os.system('gmx -h >/dev/null 2>&1')
     if RC == 0:
@@ -23,10 +26,6 @@ def find_gmx():
     exit(1)
 
 
-    
-GMXEXE = find_gmx()
-MDPFILESDIR = os.path.dirname(os.path.abspath(__file__)) + '/simulation/mdp'
-
 def has_mpirun():
     RC = os.system('which mpirun >/dev/null 2>&1')
     if RC == 0:
@@ -34,23 +33,10 @@ def has_mpirun():
     else:
         return False
 
-MPI = has_mpirun()
-
-logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=DATE_FORMAT)
-
-
-gmx_MMPBSA='gmx_MMPBSA'
-if 'AMBERHOME' not in os.environ:
-    #os.environ['AMBERHOME'] = set_amber_home(gmx_MMPBSA)
-    print("Not found variable AMBERHOME")
-
-if 'OMP_NUM_THREADS' in os.environ:
-    OMP_NUM_THREADS = os.environ['OMP_NUM_THREADS']
-else:
-    OMP_NUM_THREADS = 1
 
 def set_OMP_NUM_THREADS(nt):
     os.environ['OMP_NUM_THREADS'] = str(nt)
+
 
 def obtain_MMPBSA_version():
     versionFile = '/tmp/' + uuid.uuid1().hex
@@ -68,7 +54,6 @@ def obtain_MMPBSA_version():
         sys.exit(1)
     return version
 
-PBSA_VERSION = 1.5  #obtain_MMPBSA_version()
 
 class PathManager(object):
     def __init__(self, path) -> None:
@@ -96,3 +81,19 @@ class PathManager(object):
             return os.path.abspath(os.path.join(cwd, files))
         else:
             return [os.path.abspath(os.path.join(cwd, f)) for f in files]
+
+
+# runtime / environment setup
+GMXEXE = find_gmx()
+MPI = has_mpirun()
+gmx_MMPBSA = 'gmx_MMPBSA'
+PBSA_VERSION = 1.6  # obtain_MMPBSA_version()
+
+if 'AMBERHOME' not in os.environ:
+    #os.environ['AMBERHOME'] = set_amber_home(gmx_MMPBSA)
+    print("Not found variable AMBERHOME")
+
+if 'OMP_NUM_THREADS' in os.environ:
+    OMP_NUM_THREADS = os.environ['OMP_NUM_THREADS']
+else:
+    OMP_NUM_THREADS = 1
