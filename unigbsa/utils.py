@@ -10,7 +10,8 @@ def obtain_id_from_index(indexFile):
     Given an index file, return the group IDs of the receptor and ligand
     
     Args:
-      indexFile: the index file that contains the information about the receptor and ligand groups.
+      indexFile: the index file that contains the information about the receptor 
+      and ligand groups.
     
     Returns:
       the receptor and ligand IDs.
