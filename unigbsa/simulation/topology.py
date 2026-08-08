@@ -12,6 +12,7 @@ from unigbsa.simulation.utils import convert_format, guess_filetype, fix_inserti
 from unigbsa.simulation.utils import assign_partial_charge, write_position_restrain
 from unigbsa.simulation.utils import obtain_net_charge, gen_index_for_gbsa
 
+
 def build_lignad(ligandfile, forcefield="gaff2", charge_method="bcc", engine="acpype", verbose=False, outtop=None, outcoord=None, molname='MOL', itpfile=None, sqm_opt=True, nt=1):
     """
     Build a ligand topology and coordinate file from a ligand file using acpype
@@ -197,6 +198,7 @@ def build_protein(pdbfile, forcefield='amber99sb-ildn', outtop=None, outcoord=No
     shutil.rmtree(proteinName)
     return prottop, protgro
 
+
 def build_topol(receptor, ligand, outpdb, outtop, proteinforce='amber99sb-ildn', ligandforce='gaff2', charge_method='bcc', nt=1, verbose=False):
     """
     Build a topology file for a protein-ligand system
@@ -268,6 +270,7 @@ def build_topol(receptor, ligand, outpdb, outtop, proteinforce='amber99sb-ildn',
 
     write_position_restrain(outtop)
     return indexfile
+
 
 def main():
     pdbfile, ligandfile = sys.argv[1], sys.argv[2]
