@@ -35,11 +35,18 @@ def threads_split(njob, nt):
     return threads, nt
 
 def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
+    """Build parameter sets from scan.json.
+
+    scantype:
+      fixed — one-at-a-time (default; each list item vs remaining defaults)
+      all   — cartesian product of all scanned lists
+    """
     parasdict = {}
     with open(jsonfile)  as fr:
         data = json.load(fr)
     defaultparas = load_configue_file()
-    scantypes = 'fixed all'
+    scantypes = ('fixed', 'all')
+    scantype = (scantype or 'fixed').lower()
     simulationparas = {
         'forcefield':{
             "proteinforcefield": "amber03",
@@ -76,11 +83,11 @@ def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
                 varparas[key] = vi
     if scantype == 'fixed':
         for k, v in varparas.items():
-            ki, kj = k.split('_')
+            ki, kj = k.split('_', 1)
             for vi in v:
                 dic = copy(defaultparas)
-                if 'mode' in kj and '-' in vi:
-                    mode, modevalue = vi.split('-')
+                if 'mode' in kj and '-' in str(vi):
+                    mode, modevalue = str(vi).split('-', 1)
                     dic[ki][kj] = mode
                     if mode == 'md':
                         modevalue = int(modevalue)
@@ -90,16 +97,21 @@ def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
                 name = '%s_%s'%(str(k), str(vi))
                 parasdict[name] = dic
     elif scantype == 'all':
-        keys = varparas.keys()
+        keys = list(varparas.keys())
         values = [varparas[k] for k in keys]
-        groups = itertools.product(*values)
-        for group in groups:
+        n_product = 1
+        for vals in values:
+            n_product *= max(len(vals), 1)
+        logging.info('scantype=all: cartesian product of %s -> %d combinations' % (
+            ' x '.join('%s(%d)' % (k, len(varparas[k])) for k in keys) if keys else 'none',
+            n_product))
+        for group in itertools.product(*values):
             dic = copy(defaultparas)
             name = []
-            for k,v in zip(keys, group):
-                ki, kj = k.split('_')
-                if 'mode' in kj and '-' in v:
-                    mode, modevalue = v.split('-')
+            for k, v in zip(keys, group):
+                ki, kj = k.split('_', 1)
+                if 'mode' in kj and '-' in str(v):
+                    mode, modevalue = str(v).split('-', 1)
                     dic[ki][kj] = mode
                     if mode == 'md':
                         modevalue = int(modevalue)
@@ -115,6 +127,8 @@ def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
     for k, v in parasdict.items():
         if v not in parasdict_unique.values():
             parasdict_unique[k] = v
+    logging.info('Scan generated %d unique parameter sets (scantype=%s).' % (
+        len(parasdict_unique), scantype))
 
     simulationparas = {}
     for name, v in parasdict_unique.items():
@@ -319,7 +333,7 @@ def gbsa_calculation_MPI(paras, outdir, nt=4):
     df.to_csv(outcsv, index=False)
     return outparas
 
-def scan_parameters_v2(receptors, protdir, ligands, ligdir, expdatfile, parasfile, outdir, nt=4) -> None:
+def scan_parameters_v2(receptors, protdir, ligands, ligdir, expdatfile, parasfile, outdir, nt=4, scantype='fixed') -> None:
     '''
     '''
     if ligands is None:
@@ -345,8 +359,8 @@ def scan_parameters_v2(receptors, protdir, ligands, ligdir, expdatfile, parasfil
         parasfile = pm.abspath(parasfile, parent=True)
         ligands = pm.abspath(sorted([lig for lig in ligands]), parent=True)
         receptors = pm.abspath(sorted([prot for prot in receptors]), parent=True)
-        logging.info('load scan paras.')
-        parasdicts, simulationparas = load_scan_paras(parasfile)
+        logging.info('load scan paras (scantype=%s).' % scantype)
+        parasdicts, simulationparas = load_scan_paras(parasfile, scantype=scantype)
         for name, parasdic in simulationparas.items():
             logging.info('Building protein and ligand topology.')
             topfileparas = build_topology_MPI(receptors, ligands, parasdic[list(parasdic.keys())[0]], name, nt=nt)
@@ -364,7 +378,7 @@ def scan_parameters_v2(receptors, protdir, ligands, ligdir, expdatfile, parasfil
             else:
                 simulationkey = f"{simparas['mode']}"
             paras = simulationparas[forcefieldkey][simulationkey]
-            paras['GBSA'] = v['GBSA']
+            paras['GBSA'] = copy(v['GBSA'])
             modes = paras['GBSA']['modes']
             if '-' in modes:
                 gmode, gtype = modes.split('-')
@@ -444,6 +458,9 @@ def main():
     parser.add_argument('-ld', dest='ligdir', help='Directory containing many ligand files. file format: .mol or .sdf', default=None)
     parser.add_argument('-e', help='Experiment data file.', required=True)
     parser.add_argument('-c', dest='parasfile', help='Parameters to scan', required=True)
+    parser.add_argument('--scantype', dest='scantype', choices=['fixed', 'all'], default='fixed',
+                        help='fixed: vary one parameter at a time (default). '
+                             'all: cartesian product of all scanned lists.')
     parser.add_argument('-o', dest='outdir', help='Output directory.', default='pbsa.scan')
     parser.add_argument('-nt', dest='threads', help='Set number of threads to run this program.', type=int, default=multiprocessing.cpu_count())
     parser.add_argument('--verbose', help='Keep all the files.', action='store_true', default=False)
@@ -453,5 +470,5 @@ def main():
     # scan_parameters(receptor, ligands, ligdir, expdatfile, parasfile, verbose, outdir, nt)
     #if isinstance(receptor, str):
     #    receptor = [receptor] * len(ligands)
-    scan_parameters_v2(receptor, protdir, ligands, ligdir, expdatfile, parasfile, outdir, nt=nt)
+    scan_parameters_v2(receptor, protdir, ligands, ligdir, expdatfile, parasfile, outdir, nt=nt, scantype=args.scantype)
     
