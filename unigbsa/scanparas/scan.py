@@ -21,6 +21,26 @@ from unigbsa.utils import logging
 
 KEY = ['ligandName', 'Frames', 'mode', 'complex','receptor','ligand','Internal','Van der Waals','Electrostatic','Polar Solvation','Non-Polar Solvation','Gas','Solvation','TOTAL']
 
+# Internal scan keys are "{section}_{param}" (e.g. simulation_proteinforcefield).
+# Labels below are used in job names, logs, and paras_performance.csv.
+_SCAN_NAME_LABELS = {
+    'simulation_proteinforcefield': 'protein',
+    'simulation_ligandforcefield': 'ligand',
+    'simulation_ligandCharge': 'charge',
+    'simulation_mode': 'sim',
+    'GBSA_modes': 'gbsa',
+    'GBSA_indi': 'indi',
+    'GBSA_exdi': 'exdi',
+}
+
+
+def _scan_label(key):
+    return _SCAN_NAME_LABELS.get(key, key.split('_', 1)[-1])
+
+
+def _scan_job_token(key, value):
+    return '%s=%s' % (_scan_label(key), value)
+
 
 def reres_gro(infile, outfile):
     cmd = '%s editconf -f %s -o %s -resnr 1 >/dev/null 2>&1'%(GMXEXE, infile, outfile)
@@ -94,7 +114,7 @@ def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
                     dic[ki][modedict[mode]] = modevalue
                 else:
                     dic[ki][kj] = vi
-                name = '%s_%s'%(str(k), str(vi))
+                name = _scan_job_token(k, vi)
                 parasdict[name] = dic
     elif scantype == 'all':
         keys = list(varparas.keys())
@@ -103,7 +123,7 @@ def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
         for vals in values:
             n_product *= max(len(vals), 1)
         logging.info('scantype=all: cartesian product of %s -> %d combinations' % (
-            ' x '.join('%s(%d)' % (k, len(varparas[k])) for k in keys) if keys else 'none',
+            ' x '.join('%s(%d)' % (_scan_label(k), len(varparas[k])) for k in keys) if keys else 'none',
             n_product))
         for group in itertools.product(*values):
             dic = copy(defaultparas)
@@ -118,7 +138,7 @@ def load_scan_paras(jsonfile: str, scantype='fixed') -> dict:
                     dic[ki][modedict[mode]] = modevalue
                 else:
                     dic[ki][kj] = v
-                name.append('%s_%s'%(str(k), str(v)))
+                name.append(_scan_job_token(k, v))
             parasdict['__'.join(name)] = dic
     else:
         raise Exception(f'scantype {scantype} not one of the: {scantypes}')
