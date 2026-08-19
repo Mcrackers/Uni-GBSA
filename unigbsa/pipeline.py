@@ -117,6 +117,80 @@ def _write_energy_csv(df, outfile):
     df[KEY].to_csv(outfile, index=False)
 
 
+# Numeric energy columns that are averaged over frames for the SDF output.
+_ENERGY_COLS = [
+    'Frames', 'complex', 'receptor', 'ligand',
+    'Internal', 'Van der Waals', 'Electrostatic',
+    'Polar Solvation', 'Non-Polar Solvation',
+    'Gas', 'Solvation', 'TOTAL',
+]
+
+
+def _write_energy_sdf(df, ligandfiles, outfile):
+    """Write a new SDF with mmGBSA results as molecule properties.
+
+    One record per ligand.  Energy values are averaged over all successful
+    frames; failed ligands (status != 'S') get their status written but
+    energy properties are omitted.  Property names mirror the CSV columns
+    with spaces replaced by underscores and prefixed with ``mmGBSA_``.
+    """
+    from rdkit import Chem
+    from rdkit.Chem import SDWriter
+
+    # Build lookup: ligandName → original SDF/MOL path
+    name_to_file = {}
+    for lf in ligandfiles:
+        lf = os.path.abspath(lf)
+        name = os.path.split(lf)[-1][:-4]
+        name_to_file[name] = lf
+
+    with SDWriter(outfile) as writer:
+        for ligandName, group in df.groupby('ligandName', sort=False):
+            lf = name_to_file.get(ligandName)
+            if lf is None:
+                logging.warning(
+                    'SDF write: no input file found for %s, skipping.'
+                    % ligandName
+                )
+                continue
+
+            # Try to read the original molecule
+            mol = None
+            if lf.endswith('.sdf') or lf.endswith('.mol'):
+                mol = Chem.MolFromMolFile(lf, removeHs=False)
+            if mol is None:
+                # Fall back to a molecule with no structure
+                mol = Chem.MolFromSmiles('')
+                logging.warning(
+                    'SDF write: could not read structure from %s,'
+                    ' writing properties only.' % lf
+                )
+
+            mol.SetProp('_Name', ligandName)
+
+            # Status: 'S' if all frames succeeded, else the failure code
+            statuses = group['status'].unique()
+            status = 'S' if list(statuses) == ['S'] else statuses[0]
+            mol.SetProp('mmGBSA_status', status)
+
+            # Averaged mode string (e.g. 'gb')
+            if 'mode' in group.columns:
+                mol.SetProp('mmGBSA_mode', str(group['mode'].iloc[0]))
+
+            # Average numeric columns over successful frames only
+            ok = group[group['status'] == 'S']
+            if not ok.empty:
+                for col in _ENERGY_COLS:
+                    if col in ok.columns:
+                        val = ok[col].mean()
+                        prop = 'mmGBSA_' + col.replace(' ', '_')
+                        mol.SetDoubleProp(prop, float(val))
+
+            writer.write(mol)
+
+    logging.info('SDF results written to %s' % outfile)
+
+
 def _tag_result(df, ligandName, status):
     """Copy a GBSA frame and set ligandName / status columns."""
     df = df.copy()
@@ -176,14 +250,29 @@ def _run_gbsa_jobs(jobs, nt):
     return pd.concat(frames)
 
 
-def _combine_and_write(failed, gbsa_df, outfile):
-    """Write failed placeholders and GBSA frames to CSV."""
+def _combine_and_write(failed, gbsa_df, outfile, ligandfiles=None):
+    """Write failed placeholders and GBSA frames to CSV and (optionally) SDF.
+
+    When ``ligandfiles`` is provided and rdkit is available, also writes
+    ``<outfile>.sdf`` with per-molecule mmGBSA properties.
+    """
     frames = list(failed)
     if gbsa_df is not None:
         frames.append(gbsa_df)
     if not frames:
         raise Exception('No GBSA results to write.')
-    _write_energy_csv(pd.concat(frames), outfile)
+    df = pd.concat(frames)
+    _write_energy_csv(df, outfile)
+
+    if ligandfiles:
+        sdf_out = outfile.replace('.csv', '') + '.sdf'
+        try:
+            _write_energy_sdf(df, ligandfiles, sdf_out)
+        except ImportError:
+            logging.warning(
+                'rdkit not available — SDF output skipped.'
+                ' Install with: conda install -c conda-forge rdkit'
+            )
 
 
 def traj_pipeline(
@@ -317,7 +406,10 @@ def base_pipeline(
         ))
         os.chdir(cwd)
 
-    _combine_and_write(failed, _run_gbsa_jobs(jobs, nt), outfile)
+    _combine_and_write(
+        failed, _run_gbsa_jobs(jobs, nt), outfile,
+        ligandfiles=ligandfiles,
+    )
 
 
 def single(arg):
@@ -449,7 +541,10 @@ def minim_pipeline(
         ))
         os.chdir(cwd)
 
-    _combine_and_write(failed, _run_gbsa_jobs(jobs, nt), outfile)
+    _combine_and_write(
+        failed, _run_gbsa_jobs(jobs, nt), outfile,
+        ligandfiles=ligandfiles,
+    )
 
 
 def md_pipeline(
@@ -550,7 +645,10 @@ def md_pipeline(
         ))
         os.chdir(cwd)
 
-    _combine_and_write(failed, _run_gbsa_jobs(jobs, nt), outfile)
+    _combine_and_write(
+        failed, _run_gbsa_jobs(jobs, nt), outfile,
+        ligandfiles=ligandfiles,
+    )
 
 
 def main(args=None):
@@ -606,8 +704,8 @@ def main(args=None):
     parser.add_argument(
         '--outdir',
         dest='outdir',
-        help='Output directory (like unigbsa-scan -o). default: pbsa.pipeline',
-        default='pbsa.pipeline',
+        help='Output directory (like unigbsa-scan -o). default: unigbsa.pipeline',
+        default='unigbsa.pipeline',
     )
     parser.add_argument(
         '-validate',
